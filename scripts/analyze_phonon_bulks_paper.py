@@ -1,8 +1,9 @@
 #!/usr/bin/env python
 
+import matplotlib
 import numpy as np
 from analyze_utils import *
-import matplotlib
+
 matplotlib.use('PDF')
 from matplotlib import pyplot
 
@@ -15,33 +16,34 @@ data = read_properties(models, tests, args.test_set)
 
 ref_model_name = default_analysis_settings["ref_model"]
 
+
 def analyze_phonons(m_data):
     THz_per_invcm = ase.units._c * 1.0e-10
 
-    at0 = ase.atoms.Atoms(symbols = m_data['symb'],
-        scaled_positions = np.asarray(m_data['scaled_pos']),
-        masses = np.asarray(m_data['m']), cell = np.asarray(m_data['c']), pbc=[True]*3)
-    phonopy_atoms = phonopy.structure.atoms.PhonopyAtoms(symbols = m_data['symb'],
-        scaled_positions = np.asarray(m_data['scaled_pos']),
-        masses = np.asarray(m_data['m']), cell = np.asarray(m_data['c']))
+    at0 = ase.atoms.Atoms(symbols=m_data['symb'],
+                          scaled_positions=np.asarray(m_data['scaled_pos']),
+                          masses=np.asarray(m_data['m']), cell=np.asarray(m_data['c']), pbc=[True] * 3)
+    phonopy_atoms = phonopy.structure.atoms.PhonopyAtoms(symbols=m_data['symb'],
+                                                         scaled_positions=np.asarray(m_data['scaled_pos']),
+                                                         masses=np.asarray(m_data['m']), cell=np.asarray(m_data['c']))
     phonons = phonopy.Phonopy(phonopy_atoms, m_data['n_cell'], factor=m_data['unit_factor'])
     phonons.generate_displacements(distance=m_data['dx'])
 
-    phonons.produce_force_constants(forces=np.asarray(m_data['all_forces']), calculate_full_force_constants=True )
+    phonons.produce_force_constants(forces=np.asarray(m_data['all_forces']), calculate_full_force_constants=True)
     phonons.symmetrize_force_constants()
 
     # DOS
     n_dos_mesh = 16
-    phonons.run_mesh( [n_dos_mesh]*3 )
+    phonons.run_mesh([n_dos_mesh] * 3)
 
     phonons.run_total_dos()
     frequencies = phonons.get_total_dos_dict()['frequency_points']
     PHdos = phonons.get_total_dos_dict()['total_dos']
 
-    #contains by columns the frequencies in cm^{-1} and the vDOS
-    #the vDOS ins in units of "number of states/(unit cell x frequency[cm^{-1}])"
+    # contains by columns the frequencies in cm^{-1} and the vDOS
+    # the vDOS ins in units of "number of states/(unit cell x frequency[cm^{-1}])"
     # i.e. if you integrate the vDOS throughout frequency, it will be 3N, where N is the number of atoms in the unit cell
-    m_data['DOS'] = { 'freq' : frequencies/THz_per_invcm, 'val' : PHdos*THz_per_invcm }
+    m_data['DOS'] = {'freq': frequencies / THz_per_invcm, 'val': PHdos * THz_per_invcm}
 
     # band path
     if 'band_path' in m_data:
@@ -72,16 +74,16 @@ def analyze_phonons(m_data):
                 pt = []
 
         if len(band_n) == 1:
-            band_n *= len(path_pts)-1
-        assert len(band_n) == len(path_pts)-1
+            band_n *= len(path_pts) - 1
+        assert len(band_n) == len(path_pts) - 1
 
         q_pts = []
         q_pt_labels = []
         for (seg_i, (label, n, p0, p1)) in enumerate(zip(path_labels[0:-1], band_n, path_pts[0:-1], path_pts[1:])):
             for p_i in range(n):
-                x = float(p_i)/float(n)
+                x = float(p_i) / float(n)
 
-                q_pts.append ( (1.0-x) * p0 + x*p1 )
+                q_pts.append((1.0 - x) * p0 + x * p1)
 
                 if p_i == 0:
                     q_pt_labels.append(label)
@@ -94,9 +96,10 @@ def analyze_phonons(m_data):
         phonons.run_band_structure([q_pts])
         bs = phonons.get_band_structure_dict()
         m_data['BAND_PATH'] = {
-            'positions' : bs['distances'][0],
-            'frequencies' : bs['frequencies'][0]/THz_per_invcm,
-            'labels' : q_pt_labels }
+            'positions': bs['distances'][0],
+            'frequencies': bs['frequencies'][0] / THz_per_invcm,
+            'labels': q_pt_labels}
+
 
 if ref_model_name in data and "phonon_bulks" in data[ref_model_name]:
     for (bulk_i, bulk_struct_test) in enumerate(data[ref_model_name]["phonon_bulks"]):
@@ -111,18 +114,18 @@ for model_name in models:
                 bulk_struct_tests.append(bulk_struct_test)
 
 fig_DOS = pyplot.figure()
-ax_DOS = fig_DOS.add_subplot(1,1,1)
+ax_DOS = fig_DOS.add_subplot(1, 1, 1)
 fig_BP = pyplot.figure()
-ax_BP = fig_BP.add_subplot(1,1,1)
+ax_BP = fig_BP.add_subplot(1, 1, 1)
 
 # label_dict = Dict(
 #
 # )
-colors = ['red', 'green', 'blue','cyan']
+colors = ['red', 'green', 'blue', 'cyan']
 
 k = 0
 
-for (j,model_name) in enumerate(models):
+for (j, model_name) in enumerate(models):
     if model_name == ref_model_name and len(models) > 1:
         continue
     print("analyze model", model_name)
@@ -144,26 +147,31 @@ for (j,model_name) in enumerate(models):
 
         if ref_model_data is not None and 'BAND_PATH' in ref_model_data:
             for i in range(ref_model_data['BAND_PATH']['frequencies'].shape[1]):
-                ax_BP.plot(ref_model_data['BAND_PATH']['positions'], ref_model_data['BAND_PATH']['frequencies'][:,i], "-", color='black',
+                ax_BP.plot(ref_model_data['BAND_PATH']['positions'], ref_model_data['BAND_PATH']['frequencies'][:, i],
+                           "-", color='black',
                            label=ref_model_name if k == 0 else None)
                 k += 1
 
-        if  'BAND_PATH' in model_data:
+        if 'BAND_PATH' in model_data:
             for i in range(model_data['BAND_PATH']['frequencies'].shape[1]):
-                ax_BP.plot(model_data['BAND_PATH']['positions'], model_data['BAND_PATH']['frequencies'][:,i], "-", color=colors[j],
+                ax_BP.plot(model_data['BAND_PATH']['positions'], model_data['BAND_PATH']['frequencies'][:, i], "-",
+                           color=colors[j],
                            label=model_name if i == 0 else None)
 
-            ax_BP.set_xticks([p for p,l in zip(model_data['BAND_PATH']['positions'], model_data['BAND_PATH']['labels']) if l != '.'])
+            ax_BP.set_xticks(
+                [p for p, l in zip(model_data['BAND_PATH']['positions'], model_data['BAND_PATH']['labels']) if
+                 l != '.'])
             ax_BP.set_xticklabels([l for l in model_data['BAND_PATH']['labels'] if l != '.'])
-            ax_BP.set_xlim(model_data['BAND_PATH']['positions'][0],model_data['BAND_PATH']['positions'][-1])
+            ax_BP.set_xlim(model_data['BAND_PATH']['positions'][0], model_data['BAND_PATH']['positions'][-1])
 
-            #ax_BP.set_ylim(ylim)
+            # ax_BP.set_ylim(ylim)
             ylim = ax_DOS.get_ylim()
-            if bulk_i == len(bulk_struct_tests)-1:
+            if bulk_i == len(bulk_struct_tests) - 1:
                 ylim = ax_BP.get_ylim()
-                for p, l in zip(ref_model_data['BAND_PATH']['positions'][1:-1], ref_model_data['BAND_PATH']['labels'][1:-1]):
+                for p, l in zip(ref_model_data['BAND_PATH']['positions'][1:-1],
+                                ref_model_data['BAND_PATH']['labels'][1:-1]):
                     if l != '.':
-                        ax_BP.plot([p,p],ylim, '-', color='black', label=None, linewidth=0.5)
+                        ax_BP.plot([p, p], ylim, '-', color='black', label=None, linewidth=0.5)
 
 ax_BP.set_xlabel("BZ point")
 ax_BP.set_ylim(ylim)
